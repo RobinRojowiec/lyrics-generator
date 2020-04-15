@@ -14,36 +14,55 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
-artist = Variable(torch.LongTensor([[1]]))
-genre = Variable(torch.LongTensor([[0]]))
-next_word = Variable(torch.LongTensor([[1]]))
-length = 300
+
+def make_id_tensor(id: int):
+    return Variable(torch.LongTensor([[[id]]]))
+
+
+artist = make_id_tensor(1)
+genre = make_id_tensor(1)
+length = 100
 states = None
-vocab_file = "data/id2char.vocab"
+id2char_vocab_file = "data/id2char.vocab"
+char2id_vocab_file = "data/char2id.vocab"
 
-with open(vocab_file, "r", encoding="utf8") as json_file:
-    char_vocab = json.load(json_file)
+# load vocab files
+with open(id2char_vocab_file, "r", encoding="utf8") as json_file:
+    id2char_vocab = json.load(json_file)
 
+with open(char2id_vocab_file, "r", encoding="utf8") as json_file:
+    char2id_vocab = json.load(json_file)
+
+# load model
 model = torch.load("data/lstm_model.pt", map_location=torch.device("cpu"))
 model.eval()
 
-# greedy decoding
-tokens = []
-temperature = 1.0
 
-for _ in range(length):
-    predicted_word, states = model.next_word(artist, genre, next_word, states)
+# TODO: add initial text to continue generation, add song title as parameter,
+def generate(artist_id, genre_id, id2char_vocab, start_id=1, temperature=1.0, max_length=500, end_char_id=2,
+             states=None):
+    next_word = Variable(torch.LongTensor([[[start_id]]]))
+    generated_chars = [id2char_vocab[str(start_id)]]
 
-    output_dist = nn.functional.softmax(predicted_word.view(-1).div(temperature), dim=0).data
-    predicted_label = torch.multinomial(output_dist, 1)
-    char_id = predicted_label.item()
+    for _ in range(max_length):
+        predicted_word, states = model(artist_id=artist_id, genre_id=genre_id, char_id_tensor=next_word,
+                                       char_id_length=torch.LongTensor([1]), states=states)
+        predicted_word = predicted_word.squeeze(0)
+        output_dist = nn.functional.softmax(predicted_word.div(temperature), dim=0).data
+        predicted_label = torch.multinomial(output_dist, 1)
+        char_id = predicted_label.item()
 
-    # stop at <end> symbol
-    if char_id == 2:
-        break
+        # end the lyrics if end character appears
+        if char_id == end_char_id:
+            break
 
-    tokens.append(char_vocab[str(char_id)])
-    next_word = torch.LongTensor([[char_id]])
+        generated_chars.append(id2char_vocab[str(char_id)])
+        next_word = Variable(torch.LongTensor([[[char_id]]]))
 
-text = "".join(['<start>'] + tokens + ['<end>'])
-print(text)
+    text = "".join(generated_chars)
+    return text
+
+
+if __name__ == '__main__':
+    lyrics = generate(artist, genre, id2char_vocab)
+    print(lyrics)
