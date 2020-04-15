@@ -7,26 +7,43 @@ Filename: generate.py
 Date: 13.04.2020
 
 """
+
+import json
+
 import torch
+import torch.nn as nn
+from torch.autograd import Variable
 
-from data import LabelVocab
-
-artist = 1
-genre = 1
-next_word = 1
+artist = Variable(torch.LongTensor([[1]]))
+genre = Variable(torch.LongTensor([[0]]))
+next_word = Variable(torch.LongTensor([[1]]))
 length = 300
 states = None
+vocab_file = "data/id2char.vocab"
 
-char_vocab = LabelVocab.load("data/chars.vocab")
+with open(vocab_file, "r", encoding="utf8") as json_file:
+    char_vocab = json.load(json_file)
 
-model = torch.load("data/model")
+model = torch.load("data/lstm_model.pt", map_location=torch.device("cpu"))
 model.eval()
 
-text = ""
+# greedy decoding
+tokens = []
+temperature = 1.0
+
 for _ in range(length):
-    next_word, states = model.next_word(artist, genre, next_word, states)
-    char_id = torch.max(next_word, dim=1)[0]
+    predicted_word, states = model.next_word(artist, genre, next_word, states)
 
-    text += char_vocab.get_label(char_id)
+    output_dist = nn.functional.softmax(predicted_word.view(-1).div(temperature), dim=0).data
+    predicted_label = torch.multinomial(output_dist, 1)
+    char_id = predicted_label.item()
 
+    # stop at <end> symbol
+    if char_id == 2:
+        break
+
+    tokens.append(char_vocab[str(char_id)])
+    next_word = torch.LongTensor([[char_id]])
+
+text = "".join(['<start>'] + tokens + ['<end>'])
 print(text)
