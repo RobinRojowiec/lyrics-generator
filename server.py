@@ -55,7 +55,7 @@ def extract_text(artist: int, genre: int, length: int = 1000):
         genre_id = make_id_tensor(genre)
         lyrics = generate(artist_id, genre_id, id2char_vocab, max_length=length)
         return {
-            "lyrics": lyrics.replace("<start>", "").replace("<end>", ""),
+            "text": lyrics.replace("<start>", "").replace("<end>", ""),
             "length": {
                 "chars": len(lyrics),
                 "words": len(lyrics.split())
@@ -64,7 +64,7 @@ def extract_text(artist: int, genre: int, length: int = 1000):
     raise HTTPException(status_code=400, detail="Invalid request")
 
 
-app.mount("/", StaticFiles(directory="public"), name="static")
+app.mount("/", StaticFiles(directory="public/public/src/dist"), name="static")
 
 if __name__ == "__main__":
     port = os.getenv("PORT", 8000)
