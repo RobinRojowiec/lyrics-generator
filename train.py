@@ -84,4 +84,4 @@ for epoch in range(1, epochs + 1):
         torch.save(model, "data/lstm_model.pt")
 
     print("Epoch {:1} Loss (Summed): {:2.4f}, Perplexity {:5.4f}".format(epoch, epoch_loss,
-                                                                         np.exp(epoch_loss / total_batches)))
+                                                                         np.exp(epoch_loss / len(train_dataset))))
