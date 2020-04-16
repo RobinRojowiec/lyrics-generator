@@ -15,7 +15,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from generate import generate, make_id_tensor
+from generate import generate, make_id_tensor, format_generated_text
 
 app = FastAPI()
 
@@ -54,8 +54,9 @@ def extract_text(artist: int, genre: int, length: int = 1000):
         artist_id = make_id_tensor(artist)
         genre_id = make_id_tensor(genre)
         lyrics = generate(artist_id, genre_id, id2char_vocab, max_length=length)
+        text = format_generated_text(lyrics, insert_line_breaks=False)
         return {
-            "text": lyrics.replace("<start>", "").replace("<end>", ""),
+            "text": text,
             "length": {
                 "chars": len(lyrics),
                 "words": len(lyrics.split())
@@ -64,7 +65,7 @@ def extract_text(artist: int, genre: int, length: int = 1000):
     raise HTTPException(status_code=400, detail="Invalid request")
 
 
-app.mount("/", StaticFiles(directory="public/public/src/dist"), name="static")
+app.mount("/", StaticFiles(directory="public/public/src/dist", html="index.html"), name="static")
 
 if __name__ == "__main__":
     port = os.getenv("PORT", 8000)

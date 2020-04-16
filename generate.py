@@ -9,6 +9,7 @@ Date: 13.04.2020
 """
 
 import json
+import os
 
 import torch
 import torch.nn as nn
@@ -62,6 +63,19 @@ def generate(artist_id, genre_id, id2char_vocab, start_id=1, temperature=1.0, ma
     text = "".join(generated_chars)
     return text
 
+
+def format_generated_text(text, replace_special_chars=True, insert_line_breaks=True):
+    if replace_special_chars:
+        text = text.replace("<start>", "").replace("<end>", "")
+
+    if insert_line_breaks:
+        formatted = ""
+        for char in text:
+            if char.isupper():
+                formatted += os.linesep
+            formatted += char
+        return formatted
+    return text
 
 if __name__ == '__main__':
     lyrics = generate(artist, genre, id2char_vocab)

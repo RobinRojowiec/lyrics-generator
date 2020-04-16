@@ -1,2 +1,5 @@
-pandas
-fastapi
+pandas==1.0.3
+fastapi==0.52.0
+uvicorn==0.11.3
+requests
+aiofiles

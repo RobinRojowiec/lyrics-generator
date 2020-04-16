@@ -44,14 +44,13 @@
     </div>
 
     <div class="pure-g">
-      <div class="pure-u-1-3">
-        <p></p>
+      <div class="pure-u-1-5">
       </div>
-      <div class="pure-u-1-3">
-        <p v-html="lyrics.text"></p>
+      <div class="pure-u-1-5">
       </div>
-      <div class="pure-u-1-3">
-        <p></p>
+      <div class="pure-u-1-5">
+        <br/>
+        <p v-for="(text, index) in lyrics.text.split('\n')" :key="index" v-html="text"></p>
       </div>
     </div>
 
