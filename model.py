@@ -13,7 +13,8 @@ from torch.autograd import Variable
 
 
 class LSTMLyricsGenerator(nn.Module):
-    def __init__(self, n_genres, n_artists, vocab_size, lstm_input_size=300, lstm_hidden_size=600, embedding_size=100,
+    def __init__(self, n_genres=3, vocab_size=166 + 3, n_artists=30, lstm_input_size=300, lstm_hidden_size=600,
+                 embedding_size=100,
                  num_layers=2):
         super(LSTMLyricsGenerator, self).__init__()
 

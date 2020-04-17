@@ -21,9 +21,7 @@ export default {
 
 <style scoped>
 .page-footer{
-  position: absolute;
-  bottom: 0;
-  left: 0;
+  display: flex;
   width: 100%;
   background: #343A40;
 }

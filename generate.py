@@ -15,6 +15,8 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 
+from model import LSTMLyricsGenerator
+
 
 def make_id_tensor(id: int):
     return Variable(torch.LongTensor([[[id]]]))
@@ -34,13 +36,9 @@ with open(id2char_vocab_file, "r", encoding="utf8") as json_file:
 with open(char2id_vocab_file, "r", encoding="utf8") as json_file:
     char2id_vocab = json.load(json_file)
 
-# load model
-model = torch.load("data/lstm_model.pt", map_location=torch.device("cpu"))
-model.eval()
-
 
 # TODO: add initial text to continue generation, add song title as parameter,
-def generate(artist_id, genre_id, id2char_vocab, start_id=1, temperature=1.0, max_length=500, end_char_id=2,
+def generate(model, artist_id, genre_id, id2char_vocab, start_id=1, temperature=1.0, max_length=500, end_char_id=2,
              states=None):
     next_word = Variable(torch.LongTensor([[[start_id]]]))
     generated_chars = [id2char_vocab[str(start_id)]]
@@ -78,5 +76,10 @@ def format_generated_text(text, replace_special_chars=True, insert_line_breaks=T
     return text
 
 if __name__ == '__main__':
-    lyrics = generate(artist, genre, id2char_vocab)
+    # load model
+    model = LSTMLyricsGenerator()
+    model.load_state_dict(torch.load("data/lstm_model.pt", map_location=torch.device("cpu")))
+    model.eval()
+
+    lyrics = generate(model, artist, genre, id2char_vocab)
     print(lyrics)

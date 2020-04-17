@@ -16,11 +16,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
 from generate import generate, make_id_tensor, format_generated_text
+from model import LSTMLyricsGenerator
 
 app = FastAPI()
 
 # load model
-model = torch.load("data/lstm_model.pt", map_location=torch.device("cpu"))
+model = LSTMLyricsGenerator()
+model.load_state_dict(torch.load("data/lstm_model.pt", map_location=torch.device("cpu")))
 model.eval()
 
 # load vocab files
@@ -40,7 +42,7 @@ def api_info():
     return "Lyrigen l 0.0.1"
 
 
-@app.get("/api/parameters")
+@app.get("/api/parameters", description="Retrieves all valid parameters for lyrics generation")
 def api_info():
     return {
         "genre": [key for key in genres_vocab.values()][1:],
@@ -48,18 +50,18 @@ def api_info():
     }
 
 
-@app.post("/api/generate", description="Analyzes news facts and returns findings")
-def extract_text(artist: int, genre: int, length: int = 1000):
+@app.post("/api/generate", description="Generates song lyrics")
+def extract_text(artist: int, genre: int, max_length: int = 1000, insert_line_breaks: bool = False):
     if artist is not None and genre is not None:
         artist_id = make_id_tensor(artist)
         genre_id = make_id_tensor(genre)
-        lyrics = generate(artist_id, genre_id, id2char_vocab, max_length=length)
-        text = format_generated_text(lyrics, insert_line_breaks=False)
+        lyrics = generate(model, artist_id, genre_id, id2char_vocab, max_length=max_length)
+        text = format_generated_text(lyrics, insert_line_breaks=insert_line_breaks)
         return {
             "text": text,
             "length": {
-                "chars": len(lyrics),
-                "words": len(lyrics.split())
+                "chars": len(text),
+                "words": len(text.split())
             }
         }
     raise HTTPException(status_code=400, detail="Invalid request")
@@ -68,6 +70,6 @@ def extract_text(artist: int, genre: int, length: int = 1000):
 app.mount("/", StaticFiles(directory="frontend/dist", html="index.html"), name="static")
 
 if __name__ == "__main__":
-    port = os.getenv("PORT", 8000)
+    port = int(os.getenv("PORT", 9001))
     host = os.getenv("HOST", "0.0.0.0")
     uvicorn.run(app, host=host, port=port)

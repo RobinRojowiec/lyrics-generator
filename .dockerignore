@@ -1,0 +1,7 @@
+.git
+download/*
+Dockerfile
+frontend/node_modules/*
+.ipynb_checkpoints/*
+.gitignore
+README.md

@@ -32,7 +32,7 @@
         <br />
         <b-alert show dismissible variant="danger">{{error_message}}</b-alert>
       </div>
-      <div class="col-md-6 offset-md-3" v-if="!loading">
+      <div class="col-md-6 offset-md-3 lyrics-container">
         <br />
         <p v-for="(text, index) in lyrics.text.split('\n')" :key="index" v-html="text"></p>
       </div>
@@ -106,7 +106,7 @@ export default {
           "/api/generate?artist=" +
           this.input.artist +
           "&genre=" +
-          this.input.genre,
+          this.input.genre +"&insert_line_breaks=True",
         headers: { "content-type": "application/json" }
       }).then(
         result => {
@@ -116,7 +116,6 @@ export default {
           this.error_message = error.toString()
         }
       ).finally(()=>{
-        this.loading = false
         this.loader_message = null
       });
     }
@@ -124,3 +123,8 @@ export default {
 };
 </script>
 
+<style scoped>
+.lyrics-container{
+  min-height: 500px;
+}
+</style>

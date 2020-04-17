@@ -39,7 +39,7 @@ train_loader = torch.utils.data.DataLoader(
 criterion = nn.CrossEntropyLoss().to(device)
 
 # Init model
-model = LSTMLyricsGenerator(n_genres=3, vocab_size=166 + 3, n_artists=30).to(device)
+model = LSTMLyricsGenerator().to(device)
 model.train()
 
 # Optimizer
@@ -81,7 +81,7 @@ for epoch in range(1, epochs + 1):
         best_loss = epoch_loss
 
         train_dataset.save_vocabs()
-        torch.save(model, "data/lstm_model.pt")
+        torch.save(model.state_dict(), "data/lstm_model.pt")
 
     print("Epoch {:1} Loss (Summed): {:2.4f}, Perplexity {:5.4f}".format(epoch, epoch_loss,
                                                                          np.exp(epoch_loss / total_batches)))
