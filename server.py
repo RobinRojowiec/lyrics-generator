@@ -37,7 +37,7 @@ with open("data/artists.vocab", "r", encoding="utf8") as json_file:
 
 @app.get("/api/info")
 def api_info():
-    return "Lyrics Generator Model 0.0.1"
+    return "Lyrigen l 0.0.1"
 
 
 @app.get("/api/parameters")
@@ -54,7 +54,7 @@ def extract_text(artist: int, genre: int, length: int = 1000):
         artist_id = make_id_tensor(artist)
         genre_id = make_id_tensor(genre)
         lyrics = generate(artist_id, genre_id, id2char_vocab, max_length=length)
-        text = format_generated_text(lyrics, insert_line_breaks=True)
+        text = format_generated_text(lyrics, insert_line_breaks=False)
         return {
             "text": text,
             "length": {

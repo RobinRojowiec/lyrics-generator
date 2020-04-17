@@ -128,16 +128,16 @@ class LyricsDataset(Dataset):
 
     def save_vocabs(self, directory="data/"):
         with open(os.path.join(directory, "id2char.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.tokenizer.ids2char, vocab_file, ensure_ascii=False)
+            json.dump(self.tokenizer.ids2char, vocab_file, ensure_ascii=False, indent=2)
 
         with open(os.path.join(directory, "char2id.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.tokenizer.chars2id, vocab_file, ensure_ascii=False)
+            json.dump(self.tokenizer.chars2id, vocab_file, ensure_ascii=False, indent=2)
 
         with open(os.path.join(directory, "genres.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.genre_labels.get_dict(), vocab_file, ensure_ascii=False)
+            json.dump(self.genre_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
 
         with open(os.path.join(directory, "artists.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.artist_labels.get_dict(), vocab_file, ensure_ascii=False)
+            json.dump(self.artist_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
 
 
     def get_max_length(self):

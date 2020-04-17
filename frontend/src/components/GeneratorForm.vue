@@ -1,19 +1,20 @@
 <template>
   <div class="container">
-    <h1>{{ msg }}</h1>
-
+    
     <div class="row">
       <div class="offset-md-4 col-md-4">
+        <br />
+        <h1>{{ msg }}</h1>
         <p>{{ instruction }}</p>
         <br />
       </div>
     </div>
 
     <div class="row">
-      <div class="col-md-2 offset-md-3">
+      <div class="col-md-3 offset-md-2">
         <b-form-select v-model="input.artist" :options="options.artist"></b-form-select>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-3">
         <b-form-select v-model="input.genre" :options="options.genre"></b-form-select>
       </div>
 
@@ -23,9 +24,13 @@
     </div>
 
     <div class="row">
-      <div class="col-md-6 offset-md-3" v-if="loading">
+      <div class="col-md-6 offset-md-3" v-if="loader_message">
         <b-spinner class="m-5" label="Spinning"></b-spinner>
-        <p>Generating...</p>
+        <p>{{loader_message}}</p>
+      </div>
+      <div class="col-md-6 offset-md-3" v-if="error_message">
+        <br />
+        <b-alert show dismissible variant="danger">{{error_message}}</b-alert>
       </div>
       <div class="col-md-6 offset-md-3" v-if="!loading">
         <br />
@@ -46,6 +51,8 @@ export default {
   },
   data() {
     return {
+      error_message: "",
+      loader_message: "",
       loading: false,
       lyrics: {
         text: "",
@@ -55,38 +62,44 @@ export default {
         }
       },
       input: {
-        genre: "",
-        artist: ""
+        genre: -1,
+        artist: -1
       },
       options: {
-        genre: [],
-        artist: []
+        genre: [{value: -1, text: "Please select a genre."}],
+        artist: [{value: -1, text: "Please select an artist."}]
       }
     };
   },
   mounted() {
+    this.error_message = null
+    this.loader_message = "Loading options..."
     axios({ method: "GET", url: "/api/parameters" }).then(
       result => {
-        this.options.artist = [];
+        this.options.artist = this.options.artist.slice(0,1);
         for (var i in result.data.artist) {
           name = result.data.artist[i];
           this.options.artist.push({ value: parseInt(i)+1 , text: name });
         }
 
-        this.options.genre = [];
+        this.options.genre = this.options.genre.slice(0,1);
         for (var i in result.data.genre) {
           name = result.data.genre[i];
           this.options.genre.push({ value: parseInt(i)+1, text: name });
         }
       },
       error => {
-        console.error(error);
+        this.error_message = error.toString()
       }
-    );
+    ).finally(()=>{
+      this.loader_message = null
+    });
   },
   methods: {
     sendData() {
-      this.loading = true
+      this.lyrics.text = ""
+      this.error_message = null
+      this.loader_message = "Generating..."
       axios({
         method: "POST",
         url:
@@ -98,32 +111,16 @@ export default {
       }).then(
         result => {
           this.lyrics = result.data;
-          this.loading = false
         },
         error => {
-          console.error(error);
-          this.loading = false
+          this.error_message = error.toString()
         }
-      );
+      ).finally(()=>{
+        this.loading = false
+        this.loader_message = null
+      });
     }
   }
 };
 </script>
 
-<!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-h3 {
-  margin: 40px 0 0;
-}
-ul {
-  list-style-type: none;
-  padding: 0;
-}
-li {
-  display: inline-block;
-  margin: 0 10px;
-}
-a {
-  color: #42b983;
-}
-</style>

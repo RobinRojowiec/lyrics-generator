@@ -18,7 +18,7 @@ RUN apt-get install --yes nodejs
 
 # install node dependencies and build web ui
 RUN npm install -g @vue/cli @vue/cli-service-global
-RUN cd public/public/ && npm install && cd src/ && vue build
+RUN cd frontend/ && npm install && npm run build
 
 # start server
 ENTRYPOINT [ "python" ]

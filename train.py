@@ -21,7 +21,7 @@ from model import LSTMLyricsGenerator
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
-batch_size = 32
+batch_size = 64
 device_name = "cuda" if torch.cuda.is_available() else "cpu"
 # device_name = "cpu"
 device = torch.device(device_name)
@@ -84,4 +84,4 @@ for epoch in range(1, epochs + 1):
         torch.save(model, "data/lstm_model.pt")
 
     print("Epoch {:1} Loss (Summed): {:2.4f}, Perplexity {:5.4f}".format(epoch, epoch_loss,
-                                                                         np.exp(epoch_loss / len(train_dataset))))
+                                                                         np.exp(epoch_loss / total_batches)))
