@@ -15,20 +15,24 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 
-from generate import generate, make_id_tensor, format_generated_text
-from model import LSTMLyricsGenerator
+from generate import make_id_tensor, format_generated_text, generate_song
+from model import LyricsGenerator
 
 app = FastAPI()
 
 # load model
-model = LSTMLyricsGenerator()
+model = LyricsGenerator()
 model.load_state_dict(torch.load("data/lstm_model.pt", map_location=torch.device("cpu")))
 model.eval()
 
-# load vocab files
+# load vocab and id files
 id2char_vocab_file = "data/id2char.vocab"
 with open(id2char_vocab_file, "r", encoding="utf8") as json_file:
     id2char_vocab = json.load(json_file)
+
+char2id_vocab_file = "data/char2id.vocab"
+with open(char2id_vocab_file, "r", encoding="utf8") as json_file:
+    char2id_vocab = json.load(json_file)
 
 with open("data/genres.vocab", "r", encoding="utf8") as json_file:
     genres_vocab = json.load(json_file)
@@ -55,9 +59,11 @@ def extract_text(artist: int, genre: int, max_length: int = 1000, insert_line_br
     if artist is not None and genre is not None:
         artist_id = make_id_tensor(artist)
         genre_id = make_id_tensor(genre)
-        lyrics = generate(model, artist_id, genre_id, id2char_vocab, max_length=max_length)
+        title, lyrics = generate_song(model, artist_id, genre_id, id2char_vocab, char2id_vocab, max_length=max_length)
+        title = format_generated_text(title, insert_line_breaks=insert_line_breaks)
         text = format_generated_text(lyrics, insert_line_breaks=insert_line_breaks)
         return {
+            "title": title,
             "text": text,
             "length": {
                 "chars": len(text),

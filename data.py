@@ -9,17 +9,17 @@ Date: 13.04.2020
 """
 import json
 import os
+import re
 from collections import defaultdict
 
 import pandas as pd
 import torch
+from nltk import RegexpTokenizer
 from torch.autograd import Variable
 from torch.utils.data import Dataset
 
 
-def combine(batch_data, pad_token_id=0, device=None, sort_field=None):
-    # "moved_block", "state_a", "state_b", "landmark_blocks", "state_diff",
-    # "instruction_text", "instruction_token_ids","instruction_length"
+def combine(batch_data, device=None, sort_field=None):
     if sort_field is not None:
         batch_data.sort(key=lambda x: x[sort_field].squeeze(dim=1).item(), reverse=True)
 
@@ -44,45 +44,87 @@ def combine(batch_data, pad_token_id=0, device=None, sort_field=None):
     return all_data
 
 
-class CharacterTokenizer:
+class WordTokenizer:
     def __init__(self):
-        self.last_id = 3
-        self.chars2id = dict({
-            "<pad>": 0,
-            "<start>": 1,
-            "<end>": 2
-        })
-        self.ids2char = dict({
-            0: "<pad>",
-            1: "<start>",
-            2: "<end>"
-        })
-        self.special_chars = [
+        self.special_tokens = [
+            "<pad>",
             "<start>",
-            "<end>"
+            "<end>",
+            "<unk>",
+            "\n"
         ]
+        self.last_id = len(self.special_tokens)
+        self.token2id = dict({k: i for i, k in enumerate(self.special_tokens)})
+        self.ids2token = dict({i: k for i, k in enumerate(self.special_tokens)})
+
+        self.tokenizer_pattern = re.compile("<start>|<end>|\w+|[^\w\s]+|\n", re.IGNORECASE)
+        self.word_tokenizer = RegexpTokenizer(self.tokenizer_pattern)
 
     def tokenize(self, text):
+        tokens = self.word_tokenizer.tokenize(text)
+        return tokens
+
+    def tokenize_ids(self, text):
+        tokens = self.tokenize(text)
+        token_ids = []
+        for token in tokens:
+            if not token in self.token2id:
+                self.token2id[token] = self.last_id
+                self.ids2token[self.last_id] = token
+                self.last_id += 1
+            token_ids.append(self.token2id[token])
+        return token_ids
+
+    def store_dicts(self, directory):
+        with open(os.path.join(directory, "id2token.vocab"), "w+", encoding="utf8") as vocab_file:
+            json.dump(self.ids2token, vocab_file, ensure_ascii=False, indent=2)
+
+        with open(os.path.join(directory, "token2id.vocab"), "w+", encoding="utf8") as vocab_file:
+            json.dump(self.token2id, vocab_file, ensure_ascii=False, indent=2)
+
+
+class CharacterTokenizer:
+    def __init__(self, word_tokenizer):
+        self.special_chars = [
+            "<pad>",
+            "<start>",
+            "<end>",
+            "\n"
+        ]
+        self.last_id = len(self.special_chars)
+        self.chars2id = dict({k: i for i, k in enumerate(self.special_chars)})
+        self.ids2char = dict({i: k for i, k in enumerate(self.special_chars)})
+
+        self.word_tokenizer = word_tokenizer
+
+    def tokenize_ids(self, text):
+        chars = self.tokenize(text)
+
         char_ids = []
-        tokens = text.split()
+        for char in chars:
+            if char not in self.chars2id:
+                self.chars2id[char] = self.last_id
+                self.ids2char[self.last_id] = char
+                self.last_id += 1
+            char_ids.append(self.chars2id[char])
+        return char_ids
+
+    def tokenize(self, text):
+        chars = []
+
+        tokens = self.word_tokenizer.tokenize(text)
         for index, token in enumerate(tokens):
             # prevent tokenization of special chars
             if token in self.special_chars:
-                chars = [token]
+                chars += [token]
             else:
-                chars = [c for c in token]
+                chars += [c for c in token]
 
             # if not last token, append space character
             if index < len(tokens) - 1:
                 chars.append(" ")
 
-            for char in chars:
-                if char not in self.chars2id:
-                    self.chars2id[char] = self.last_id
-                    self.ids2char[self.last_id] = char
-                    self.last_id += 1
-                char_ids.append(self.chars2id[char])
-        return char_ids
+        return chars
 
 
 class LabelVocab:
@@ -116,10 +158,11 @@ class LyricsDataset(Dataset):
         self.data_frame = pd.read_csv(self.csv_file, **csv_props)
         self.max_text_len = self.data_frame.song.str.len().max()
 
-        self.tokenizer = CharacterTokenizer()
+        self.tokenizer = WordTokenizer()
         self.artist_labels = LabelVocab('<pad>')
         self.genre_labels = LabelVocab('<pad>')
 
+        self.title_key = "song"
         self.lyrics_key = "lyrics"
         self.artist_key = "artist"
         self.genre_key = "genre"
@@ -127,11 +170,7 @@ class LyricsDataset(Dataset):
         self.pad_id = 0
 
     def save_vocabs(self, directory="data/"):
-        with open(os.path.join(directory, "id2char.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.tokenizer.ids2char, vocab_file, ensure_ascii=False, indent=2)
-
-        with open(os.path.join(directory, "char2id.vocab"), "w+", encoding="utf8") as vocab_file:
-            json.dump(self.tokenizer.chars2id, vocab_file, ensure_ascii=False, indent=2)
+        self.tokenizer.store_dicts(directory)
 
         with open(os.path.join(directory, "genres.vocab"), "w+", encoding="utf8") as vocab_file:
             json.dump(self.genre_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
@@ -150,28 +189,47 @@ class LyricsDataset(Dataset):
         row = self.data_frame.iloc[idx]
         data_row = dict()
 
+        # tokenize title
+        title = row[self.title_key]
+        title_char_ids = self.tokenizer.tokenize_ids(title)[:self.max_text_len]
+        title_id_len = len(title_char_ids)
+
+        if title_id_len < self.max_text_len:
+            title_char_ids += [self.pad_id for _ in range(self.max_text_len + 1 - title_id_len)]
+
+        if title_id_len > 1:
+            title_ids_target = title_char_ids[1:]
+            title_char_ids = title_char_ids[:-1]
+        else:
+            title_ids_target = title_char_ids.clone()
+            title_char_ids = title_char_ids.clone()
+
+        data_row["title_ids"] = torch.LongTensor([title_char_ids]).to(self.device)
+        data_row["title_ids_target"] = torch.LongTensor([title_ids_target]).to(self.device)
+        data_row["title_id_length"] = torch.LongTensor([[title_id_len]]).to("cpu")
+
         # tokenize chars and prepend start and append end token
-        song = row[self.lyrics_key]
-        char_ids = self.tokenizer.tokenize(song)[:self.max_text_len]
+        lyrics = row[self.lyrics_key]
+        char_ids = self.tokenizer.tokenize_ids(lyrics)[:self.max_text_len]
 
         if len(char_ids) > 1:
             char_ids_target = char_ids[1:]
             char_ids_input = char_ids[:-1]
         else:
-            char_ids_target = char_ids
-            char_ids_input = char_ids
+            char_ids_target = char_ids[:]
+            char_ids_input = char_ids[:]
 
         # shifted by 1
         char_id_len = len(char_ids_input)
-        data_row["char_id_length"] = Variable(torch.LongTensor([[char_id_len]])).to("cpu")
+        data_row["char_id_length"] = torch.LongTensor([[char_id_len]]).to("cpu")
 
         if char_id_len < self.max_text_len:
             char_ids_input += [self.pad_id for _ in range(self.max_text_len - char_id_len)]
-        data_row["char_id_tensor"] = Variable(torch.LongTensor([char_ids_input])).to(self.device)
+        data_row["char_id_tensor"] = torch.LongTensor([char_ids_input]).to(self.device)
 
         if char_id_len < self.max_text_len:
             char_ids_target += [self.pad_id for _ in range(self.max_text_len - char_id_len)]
-        data_row["char_id_target_tensor"] = Variable(torch.LongTensor([char_ids_target])).to(self.device)
+        data_row["char_id_target_tensor"] = torch.LongTensor([char_ids_target]).to(self.device)
 
         genre_id = self.genre_labels.get_id(row[self.genre_key])
         genre_ids = [genre_id for _ in range(char_id_len)]
@@ -188,3 +246,13 @@ class LyricsDataset(Dataset):
         data_row["artist_id"] = Variable(torch.LongTensor([artist_ids])).to(self.device)
 
         return data_row
+
+
+if __name__ == '__main__':
+    char_tok = CharacterTokenizer()
+    sent = "<start> This is a sentence. This is the second sentence. <end>"
+    print(char_tok.word_tokenizer.tokenize(sent))
+
+    ids = char_tok.tokenize(sent)
+    print("\t".join([str(id) for id in ids]))
+    print("\t".join([char_tok.ids2char[id] for id in ids]))

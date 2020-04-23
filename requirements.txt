@@ -1,5 +1,7 @@
 pandas==1.0.3
 fastapi==0.52.0
 uvicorn==0.11.3
-requests
-aiofiles
+requests==2.23.0
+aiofiles==0.5.0
+nltk==3.5
+rake-nltk==1.0.4

@@ -8,28 +8,30 @@
 </template>
 
 <script>
-import GeneratorForm from './components/GeneratorForm.vue'
-import Navbar from './components/Navbar.vue'
-import Footer from './components/Footer.vue'
+import GeneratorForm from "./components/GeneratorForm.vue";
+import Navbar from "./components/Navbar.vue";
+import Footer from "./components/Footer.vue";
 
 export default {
-  name: 'App',
+  name: "App",
   components: {
     GeneratorForm,
     Navbar,
     Footer
   },
-  data: function(){
+  data: function() {
     return {
       title: "Lyrigen",
-      description: "Please select an artist and genre to generate some awesome lyrics."
-    }
+      description:
+        "Please select an artist and genre to generate some awesome lyrics. The generation starts automatically after you selected an artist and gerne."
+    };
   }
-}
+};
 </script>
 
 <style>
-body, html{
+body,
+html {
   min-height: 100%;
   padding: 0;
   margin: 0;
