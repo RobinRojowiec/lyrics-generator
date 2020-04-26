@@ -3,8 +3,8 @@
   <footer class="page-footer font-small blue">
 
     <!-- Copyright -->
-    <div class="footer-copyright text-center">© Robin Rojowiec 2020. 
-      <a href="https://robinrojowiec.github.io">robinrojowiec.github.io</a>
+    <div class="footer-copyright text-center">Robin Rojowiec 2020. 
+      <a href="https://www.rojowiec.de">www.rojowiec.de</a>
     </div>
     <!-- Copyright -->
 

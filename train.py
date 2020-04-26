@@ -35,7 +35,7 @@ device = torch.device(device_name)
 print("Device: %s" % device)
 
 # Load data and make batches
-train_dataset = LyricsDataset("data/preprocessed_lyrics.csv", limit=5000, device=device)
+train_dataset = LyricsDataset("data/preprocessed_lyrics.csv", limit=10000, device=device)
 
 train_loader = torch.utils.data.DataLoader(
     train_dataset,
@@ -61,7 +61,7 @@ def prepare_target(target_ids, lengths, enforce_sorted=True):
     return out.reshape(out.size(0) * out.size(1))
 
 
-epochs = 1000
+epochs = 50
 best_loss = float('inf')
 for epoch in range(1, epochs + 1):
     epoch_loss = .0
@@ -80,20 +80,20 @@ for epoch in range(1, epochs + 1):
         loss_lyrics = criterion(lyrics_out, lyrics_target)
         loss.append(loss_lyrics)
 
-        # title_target = prepare_target(batch_data["title_ids_target"].squeeze(dim=1), batch_data["title_id_length"], enforce_sorted=False)
-        # loss_title = criterion(title_out, title_target)
-        # loss.append(loss_title)
+        title_target = prepare_target(batch_data["title_ids_target"].squeeze(dim=1), batch_data["title_id_length"],
+                                      enforce_sorted=False)
+        loss_title = criterion(title_out, title_target)
+        loss.append(loss_title)
 
         overall_loss = torch.stack(loss, dim=0).sum()
         overall_loss.backward()
-
-        epoch_loss += overall_loss.detach().item()
-
 
         # Gradient clipping is not in AdamW anymore (so you can use amp without issue)
         torch.nn.utils.clip_grad_norm_(model.parameters(), 0.5)
 
         optimizer.step()
+
+        epoch_loss += overall_loss.detach().item()
 
     if epoch_loss < best_loss:
         best_loss = epoch_loss

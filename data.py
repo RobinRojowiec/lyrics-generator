@@ -45,20 +45,15 @@ def combine(batch_data, device=None, sort_field=None):
 
 
 class WordTokenizer:
-    def __init__(self):
-        self.special_tokens = [
-            "<pad>",
-            "<start>",
-            "<end>",
-            "<unk>",
-            "\n"
-        ]
+    def __init__(self, special_tokens=["<pad>", "<start>", "<end>", "<unk>", "\n"], name=None):
+        self.special_tokens = special_tokens
         self.last_id = len(self.special_tokens)
         self.token2id = dict({k: i for i, k in enumerate(self.special_tokens)})
         self.ids2token = dict({i: k for i, k in enumerate(self.special_tokens)})
 
         self.tokenizer_pattern = re.compile("<start>|<end>|\w+|[^\w\s]+|\n", re.IGNORECASE)
         self.word_tokenizer = RegexpTokenizer(self.tokenizer_pattern)
+        self.name = name
 
     def tokenize(self, text):
         tokens = self.word_tokenizer.tokenize(text)
@@ -156,13 +151,15 @@ class LyricsDataset(Dataset):
         if limit > 0:
             csv_props["nrows"] = limit
         self.data_frame = pd.read_csv(self.csv_file, **csv_props)
-        self.max_text_len = self.data_frame.song.str.len().max()
+        self.max_text_len = 50
+        self.pad_token = "<pad>"
 
         self.tokenizer = WordTokenizer()
-        self.artist_labels = LabelVocab('<pad>')
-        self.genre_labels = LabelVocab('<pad>')
+        self.artist_labels = LabelVocab(self.pad_token)
+        self.genre_labels = LabelVocab(self.pad_token)
+        self.keyword_labels = LabelVocab(self.pad_token)
 
-        self.title_key = "song"
+        self.title_key = "title"
         self.lyrics_key = "lyrics"
         self.artist_key = "artist"
         self.genre_key = "genre"
@@ -172,12 +169,14 @@ class LyricsDataset(Dataset):
     def save_vocabs(self, directory="data/"):
         self.tokenizer.store_dicts(directory)
 
+        with open(os.path.join(directory, "keywords.vocab"), "w+", encoding="utf8") as vocab_file:
+            json.dump(self.keyword_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
+
         with open(os.path.join(directory, "genres.vocab"), "w+", encoding="utf8") as vocab_file:
             json.dump(self.genre_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
 
         with open(os.path.join(directory, "artists.vocab"), "w+", encoding="utf8") as vocab_file:
             json.dump(self.artist_labels.get_dict(), vocab_file, ensure_ascii=False, indent=2)
-
 
     def get_max_length(self):
         return self.max_text_len
@@ -231,13 +230,30 @@ class LyricsDataset(Dataset):
             char_ids_target += [self.pad_id for _ in range(self.max_text_len - char_id_len)]
         data_row["char_id_target_tensor"] = torch.LongTensor([char_ids_target]).to(self.device)
 
+        # keyword input
+        keyword_string = row["keywords"]
+        if type(keyword_string) == float:
+            keywords = [self.pad_id]
+        else:
+            keywords = keyword_string.split()
+        top_keywords = keywords[0]
+
+        top_keyword_id = self.keyword_labels.get_id(top_keywords)
+        keyword_ids = [top_keyword_id for _ in range(char_id_len)]
+        keyword_ids_len = len(keyword_ids)
+        if keyword_ids_len < self.max_text_len:
+            keyword_ids += [self.pad_id for _ in range(self.max_text_len - keyword_ids_len)]
+        data_row["keyword_id"] = torch.LongTensor([keyword_ids]).to(self.device)
+
+        # genre label input
         genre_id = self.genre_labels.get_id(row[self.genre_key])
         genre_ids = [genre_id for _ in range(char_id_len)]
         genre_ids_len = len(genre_ids)
         if genre_ids_len < self.max_text_len:
             genre_ids += [self.pad_id for _ in range(self.max_text_len - genre_ids_len)]
-        data_row["genre_id"] = Variable(torch.LongTensor([genre_ids])).to(self.device)
+        data_row["genre_id"] = torch.LongTensor([genre_ids]).to(self.device)
 
+        # artist label input
         artist_id = self.artist_labels.get_id(row[self.artist_key])
         artist_ids = [artist_id for _ in range(char_id_len)]
         artist_ids_len = len(artist_ids)

@@ -21,16 +21,17 @@ from model import LyricsGenerator
 app = FastAPI()
 
 # load model
-model = LyricsGenerator()
-model.load_state_dict(torch.load("data/lstm_model.pt", map_location=torch.device("cpu")))
+device = torch.device("cpu")
+model = LyricsGenerator(device)
+model.load_state_dict(torch.load("data/lstm_model.pt", map_location=device))
 model.eval()
 
 # load vocab and id files
-id2char_vocab_file = "data/id2char.vocab"
+id2char_vocab_file = "data/id2token.vocab"
 with open(id2char_vocab_file, "r", encoding="utf8") as json_file:
     id2char_vocab = json.load(json_file)
 
-char2id_vocab_file = "data/char2id.vocab"
+char2id_vocab_file = "data/token2id.vocab"
 with open(char2id_vocab_file, "r", encoding="utf8") as json_file:
     char2id_vocab = json.load(json_file)
 
@@ -39,6 +40,9 @@ with open("data/genres.vocab", "r", encoding="utf8") as json_file:
 
 with open("data/artists.vocab", "r", encoding="utf8") as json_file:
     artist_vocab = json.load(json_file)
+
+with open("data/keywords.vocab", "r", encoding="utf8") as json_file:
+    keyword_vocab = json.load(json_file)
 
 
 @app.get("/api/info")
@@ -50,18 +54,23 @@ def api_info():
 def api_info():
     return {
         "genre": [key for key in genres_vocab.values()][1:],
-        "artist": [key for key in artist_vocab.values()][1:]
+        "artist": [key for key in artist_vocab.values()][1:],
+        "keywords": [key for key in keyword_vocab.values()][1:],
     }
 
 
 @app.post("/api/generate", description="Generates song lyrics")
-def extract_text(artist: int, genre: int, max_length: int = 1000, insert_line_breaks: bool = False):
+def extract_text(artist: int, genre: int, keyword: int, max_length: int = 1000, insert_line_breaks: bool = False):
     if artist is not None and genre is not None:
         artist_id = make_id_tensor(artist)
         genre_id = make_id_tensor(genre)
-        title, lyrics = generate_song(model, artist_id, genre_id, id2char_vocab, char2id_vocab, max_length=max_length)
+        keyword_id = make_id_tensor(keyword)
+
+        title, lyrics = generate_song(model, artist_id, genre_id, keyword_id, id2char_vocab, char2id_vocab,
+                                      max_length=max_length)
         title = format_generated_text(title, insert_line_breaks=insert_line_breaks)
         text = format_generated_text(lyrics, insert_line_breaks=insert_line_breaks)
+
         return {
             "title": title,
             "text": text,
