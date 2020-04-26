@@ -61,7 +61,7 @@ def prepare_target(target_ids, lengths, enforce_sorted=True):
     return out.reshape(out.size(0) * out.size(1))
 
 
-epochs = 50
+epochs = 150
 best_loss = float('inf')
 for epoch in range(1, epochs + 1):
     epoch_loss = .0
